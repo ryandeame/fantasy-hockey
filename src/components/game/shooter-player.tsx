@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { AimControl } from '@/components/game/aim-control';
+import { AimPoint, GameRect } from '@/components/game/aim-types';
 import { PuckShot } from '@/components/game/puck-shot';
 import { MoveAxis, ShooterControls } from '@/components/game/shooter-controls';
 import { ShooterSprite } from '@/components/game/shooter-sprite';
@@ -13,6 +15,7 @@ export type ShooterSpriteLayout = {
 
 type ShooterPlayerProps = {
   goalBottomY: number;
+  goalTargetArea?: GameRect;
   movementRange: number;
   showMobileControls: boolean;
   spriteLayout: ShooterSpriteLayout;
@@ -24,11 +27,13 @@ const PUCK_ORIGIN_Y_RATIO = 0.766;
 
 export function ShooterPlayer({
   goalBottomY,
+  goalTargetArea,
   movementRange,
   showMobileControls,
   spriteLayout,
 }: ShooterPlayerProps) {
   const { height } = useWindowDimensions();
+  const [aim, setAim] = useState<AimPoint>({ xRatio: 0.5, yRatio: 0.5 });
   const [moveAxis, setMoveAxis] = useState<MoveAxis>(0);
   const [shooterOffsetX, setShooterOffsetX] = useState(0);
   const shooterOffsetRef = useRef(0);
@@ -89,6 +94,17 @@ export function ShooterPlayer({
     x: spriteLayout.left + shooterOffsetX + spriteLayout.width * PUCK_ORIGIN_X_RATIO,
     y: shooterTop + spriteLayout.width * PUCK_ORIGIN_Y_RATIO,
   };
+  const fallbackGoalTargetArea = {
+    x: puckOrigin.x - spriteLayout.width * 0.18,
+    y: goalBottomY - spriteLayout.width * 0.16,
+    width: spriteLayout.width * 0.36,
+    height: spriteLayout.width * 0.16,
+  };
+  const activeGoalTargetArea = goalTargetArea ?? fallbackGoalTargetArea;
+  const puckTarget = {
+    x: activeGoalTargetArea.x + activeGoalTargetArea.width * aim.xRatio,
+    y: activeGoalTargetArea.y + activeGoalTargetArea.height * aim.yRatio,
+  };
 
   return (
     <View pointerEvents="box-none" style={styles.playerLayer}>
@@ -104,7 +120,8 @@ export function ShooterPlayer({
           },
         ]}
       />
-      <PuckShot origin={puckOrigin} targetY={goalBottomY} />
+      <PuckShot origin={puckOrigin} targetPoint={puckTarget} />
+      <AimControl aim={aim} onAimChange={setAim} />
       <ShooterControls
         onAxisChange={handleAxisChange}
         showMobileControls={showMobileControls}

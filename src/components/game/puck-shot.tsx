@@ -2,34 +2,37 @@ import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-type Point = {
-  x: number;
-  y: number;
-};
+import { GamePoint } from '@/components/game/aim-types';
 
 type ActiveShot = {
   progress: number;
-  start: Point;
+  start: GamePoint;
+  target: GamePoint;
 };
 
 type PuckShotProps = {
-  origin: Point;
+  origin: GamePoint;
   puckSize?: number;
-  targetY: number;
+  targetPoint: GamePoint;
 };
 
 const SHOT_DURATION = 620;
 
-export function PuckShot({ origin, puckSize = 34, targetY }: PuckShotProps) {
+export function PuckShot({ origin, puckSize = 34, targetPoint }: PuckShotProps) {
   const [activeShot, setActiveShot] = useState<ActiveShot | null>(null);
   const activeShotRef = useRef<ActiveShot | null>(null);
   const frameRef = useRef<number | null>(null);
   const shotStartTimeRef = useRef<number | null>(null);
   const latestOriginRef = useRef(origin);
+  const latestTargetRef = useRef(targetPoint);
 
   useEffect(() => {
     latestOriginRef.current = origin;
   }, [origin]);
+
+  useEffect(() => {
+    latestTargetRef.current = targetPoint;
+  }, [targetPoint]);
 
   const clearFrame = useCallback(() => {
     if (frameRef.current !== null) {
@@ -72,6 +75,7 @@ export function PuckShot({ origin, puckSize = 34, targetY }: PuckShotProps) {
     const nextShot = {
       progress: 0,
       start: latestOriginRef.current,
+      target: latestTargetRef.current,
     };
 
     activeShotRef.current = nextShot;
@@ -107,7 +111,10 @@ export function PuckShot({ origin, puckSize = 34, targetY }: PuckShotProps) {
     return null;
   }
 
-  const currentY = activeShot.start.y + (targetY - activeShot.start.y) * activeShot.progress;
+  const currentX =
+    activeShot.start.x + (activeShot.target.x - activeShot.start.x) * activeShot.progress;
+  const currentY =
+    activeShot.start.y + (activeShot.target.y - activeShot.start.y) * activeShot.progress;
   const scale = 1 - activeShot.progress * 0.42;
 
   return (
@@ -117,7 +124,7 @@ export function PuckShot({ origin, puckSize = 34, targetY }: PuckShotProps) {
         styles.puck,
         {
           height: puckSize,
-          left: activeShot.start.x - puckSize / 2,
+          left: currentX - puckSize / 2,
           top: currentY - puckSize / 2,
           transform: [{ scale }],
           width: puckSize,
