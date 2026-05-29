@@ -1,98 +1,107 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { GoalSprite } from '@/components/game/goal-sprite';
+import { GoalieSprite } from '@/components/game/goalie-sprite';
+import { ShooterPlayer } from '@/components/game/shooter-player';
+import { BottomTabInset } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const { height, width } = useWindowDimensions();
+  const sceneWidth = Math.min(width, 900);
+  const goalWidth = Math.min(sceneWidth * 0.48, 420);
+  const goalHeight = goalWidth / 1.5;
+  const goalieWidth = Math.min(sceneWidth * 0.34, 300);
+  const shooterWidth = Math.min(sceneWidth * 0.84, 600);
+  const rinkTop = Math.max(height * 0.1, 52);
+  const sceneLeft = (width - sceneWidth) / 2;
+  const shooterMovementRange = sceneWidth * 0.22;
+  const isMobileWeb = process.env.EXPO_OS === 'web' && width < 768;
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <View style={styles.screen}>
+      <View style={styles.iceWash} />
+      <View style={[styles.centerLine, { top: rinkTop + goalWidth * 0.48 }]} />
+      <View style={[styles.faceoffCircle, styles.leftCircle]} />
+      <View style={[styles.faceoffCircle, styles.rightCircle]} />
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      <GoalSprite
+        style={[
+          styles.goal,
+          {
+            left: sceneLeft + (sceneWidth - goalWidth) / 2,
+            top: rinkTop,
+            width: goalWidth,
+          },
+        ]}
+      />
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+      <GoalieSprite
+        style={[
+          styles.goalie,
+          {
+            left: sceneLeft + (sceneWidth - goalieWidth) / 2,
+            top: rinkTop + goalWidth * 0.04,
+            width: goalieWidth,
+          },
+        ]}
+      />
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <ShooterPlayer
+        goalBottomY={rinkTop + goalHeight}
+        movementRange={shooterMovementRange}
+        showMobileControls={isMobileWeb}
+        spriteLayout={{
+          bottom: BottomTabInset,
+          left: sceneLeft + (sceneWidth - shooterWidth) / 2 - shooterWidth * 0.12,
+          width: shooterWidth,
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    backgroundColor: '#dceff7',
+    height: '100%',
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  iceWash: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#eefaff',
   },
-  title: {
-    textAlign: 'center',
+  centerLine: {
+    position: 'absolute',
+    height: 3,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(199, 37, 47, 0.22)',
   },
-  code: {
-    textTransform: 'uppercase',
+  faceoffCircle: {
+    position: 'absolute',
+    bottom: '16%',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 3,
+    borderColor: 'rgba(48, 119, 189, 0.16)',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  leftCircle: {
+    left: -100,
+  },
+  rightCircle: {
+    right: -100,
+  },
+  goal: {
+    position: 'absolute',
+    zIndex: 1,
+  },
+  goalie: {
+    position: 'absolute',
+    zIndex: 2,
   },
 });
