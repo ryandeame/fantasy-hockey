@@ -28,7 +28,7 @@ export function HockeyGameScene({ awayTeam, homeTeam }: HockeyGameSceneProps) {
   return (
     <View style={styles.screen}>
       <View style={styles.iceWash} />
-      <View style={[styles.centerLine, { top: rinkTop + goalWidth * 0.48 }]} />
+      <View style={[styles.centerLine, { top: rinkTop + goalHeight * 0.87 }]} />
       <View
         style={[
           styles.faceoffCircle,

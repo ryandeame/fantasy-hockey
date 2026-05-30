@@ -1,7 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   GestureResponderEvent,
-  PanResponder,
   StyleSheet,
   View,
   ViewStyle,
@@ -22,38 +21,141 @@ const lockedTouchStyle = {
   userSelect: 'none',
 } as ViewStyle;
 
+type WebTouch = {
+  clientX?: number;
+  clientY?: number;
+  identifier?: number | string;
+  locationX?: number;
+  locationY?: number;
+  pageX?: number;
+  pageY?: number;
+};
+
+type WebTouchEvent = GestureResponderEvent & {
+  currentTarget?: {
+    getBoundingClientRect?: () => {
+      left: number;
+      top: number;
+    };
+  };
+};
+
+type WebTouchNativeEvent = {
+  changedTouches?: readonly WebTouch[];
+  clientX?: number;
+  clientY?: number;
+  identifier?: number;
+  locationX?: number;
+  locationY?: number;
+  pageX?: number;
+  pageY?: number;
+  touches?: readonly WebTouch[];
+};
+
 function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
 
-function eventToAim(event: GestureResponderEvent): AimPoint {
-  const { locationX, locationY } = event.nativeEvent;
+function getTouchById(
+  touches: readonly WebTouch[] | undefined,
+  identifier: number | string | null,
+) {
+  const touchCount = touches?.length ?? 0;
+
+  if (touchCount === 0) {
+    return null;
+  }
+
+  if (identifier === null) {
+    return touches?.[0] ?? null;
+  }
+
+  for (let index = 0; index < touchCount; index += 1) {
+    const touch = touches?.[index];
+
+    if (touch?.identifier === identifier) {
+      return touch;
+    }
+  }
+
+  return null;
+}
+
+function eventToAim(
+  event: GestureResponderEvent,
+  identifier: number | string | null,
+): AimPoint | null {
+  const webEvent = event as WebTouchEvent;
+  const nativeEvent = event.nativeEvent as unknown as WebTouchNativeEvent;
+  const touch =
+    getTouchById(nativeEvent.touches, identifier) ??
+    getTouchById(nativeEvent.changedTouches, identifier) ??
+    nativeEvent;
+
+  if (touch.locationX !== undefined && touch.locationY !== undefined) {
+    return {
+      xRatio: clamp(touch.locationX / AIM_PAD_WIDTH),
+      yRatio: clamp(touch.locationY / AIM_PAD_HEIGHT),
+    };
+  }
+
+  const rect = webEvent.currentTarget?.getBoundingClientRect?.();
+
+  if (!rect) {
+    return null;
+  }
+
+  const clientX = touch.clientX ?? touch.pageX;
+  const clientY = touch.clientY ?? touch.pageY;
+
+  if (clientX === undefined || clientY === undefined) {
+    return null;
+  }
 
   return {
-    xRatio: clamp(locationX / AIM_PAD_WIDTH),
-    yRatio: clamp(locationY / AIM_PAD_HEIGHT),
+    xRatio: clamp((clientX - rect.left) / AIM_PAD_WIDTH),
+    yRatio: clamp((clientY - rect.top) / AIM_PAD_HEIGHT),
   };
 }
 
 export function AimControl({ aim, onAimChange }: AimControlProps) {
-  const handleAimEvent = useCallback(
+  const activeTouchIdRef = useRef<number | string | null>(null);
+
+  const handleAimTouch = useCallback(
     (event: GestureResponderEvent) => {
-      onAimChange(eventToAim(event));
+      event.preventDefault();
+
+      const nativeEvent = event.nativeEvent as unknown as WebTouchNativeEvent;
+      const firstTouch =
+        getTouchById(nativeEvent.changedTouches, activeTouchIdRef.current) ??
+        getTouchById(nativeEvent.touches, activeTouchIdRef.current);
+
+      if (activeTouchIdRef.current === null && firstTouch?.identifier !== undefined) {
+        activeTouchIdRef.current = firstTouch.identifier;
+      }
+
+      const nextAim = eventToAim(event, activeTouchIdRef.current);
+
+      if (nextAim) {
+        onAimChange(nextAim);
+      }
     },
     [onAimChange],
   );
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderGrant: handleAimEvent,
-        onPanResponderMove: handleAimEvent,
-        onPanResponderTerminationRequest: () => true,
-      }),
-    [handleAimEvent],
+  const handleAimEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const nativeEvent = event.nativeEvent as unknown as WebTouchNativeEvent;
+      const endedTouch = getTouchById(
+        nativeEvent.changedTouches,
+        activeTouchIdRef.current,
+      );
+
+      if (endedTouch) {
+        activeTouchIdRef.current = null;
+      }
+    },
+    [],
   );
 
   return (
@@ -61,7 +163,12 @@ export function AimControl({ aim, onAimChange }: AimControlProps) {
       accessibilityLabel="Aim shot"
       accessibilityRole="adjustable"
       style={[styles.container, lockedTouchStyle]}>
-      <View style={styles.pad} {...panResponder.panHandlers}>
+      <View
+        style={styles.pad}
+        onTouchCancel={handleAimEnd}
+        onTouchEnd={handleAimEnd}
+        onTouchMove={handleAimTouch}
+        onTouchStart={handleAimTouch}>
         <View style={[styles.guideLine, styles.verticalGuide]} />
         <View style={[styles.guideLine, styles.horizontalGuide]} />
         <View style={[styles.cornerMark, styles.topLeftMark]} />

@@ -16,6 +16,7 @@ export const HOCKEY_TEAMS: HockeyTeam[] = [
     city: 'Anchorage',
     primaryColor: '#0E7490',
     secondaryColor: '#ECFEFF',
+    teamWindowImage: require('@/assets/images/anchorage-icehawks-team-window.transparent.png'),
   },
   {
     id: 'boston-bears',
@@ -33,6 +34,7 @@ export const HOCKEY_TEAMS: HockeyTeam[] = [
     city: 'Calgary',
     primaryColor: '#B91C1C',
     secondaryColor: '#FDE68A',
+    teamWindowImage: require('@/assets/images/calgary-comets-team-window.transparent.png'),
   },
   {
     id: 'detroit-blades',
@@ -41,6 +43,25 @@ export const HOCKEY_TEAMS: HockeyTeam[] = [
     city: 'Detroit',
     primaryColor: '#991B1B',
     secondaryColor: '#F8FAFC',
+    teamWindowImage: require('@/assets/images/detroit-blades-team-window.transparent.png'),
+  },
+  {
+    id: 'halifax-narwhals',
+    name: 'Narwhals',
+    abbreviation: 'HAL',
+    city: 'Halifax',
+    primaryColor: '#1D4ED8',
+    secondaryColor: '#A7F3D0',
+    teamWindowImage: require('@/assets/images/halifax-narwhals-team-window.transparent.png'),
+  },
+  {
+    id: 'las-vegas-raccoons',
+    name: 'Raccoons',
+    abbreviation: 'LVR',
+    city: 'Las Vegas',
+    primaryColor: '#2E1065',
+    secondaryColor: '#A3E635',
+    teamWindowImage: require('@/assets/images/las-vegas-raccoons-team-window.transparent.png'),
   },
   {
     id: 'minnesota-pines',
@@ -49,6 +70,25 @@ export const HOCKEY_TEAMS: HockeyTeam[] = [
     city: 'Minnesota',
     primaryColor: '#166534',
     secondaryColor: '#EAB308',
+    teamWindowImage: require('@/assets/images/minnesota-pines-team-window.transparent.png'),
+  },
+  {
+    id: 'montreal-beavers',
+    name: 'Beavers',
+    abbreviation: 'MTL',
+    city: 'Montreal',
+    primaryColor: '#7F1D1D',
+    secondaryColor: '#38BDF8',
+    teamWindowImage: require('@/assets/images/montreal-beavers-team-window.transparent.png'),
+  },
+  {
+    id: 'portland-stormwings',
+    name: 'Stormwings',
+    abbreviation: 'POR',
+    city: 'Portland',
+    primaryColor: '#6B21A8',
+    secondaryColor: '#F59E0B',
+    teamWindowImage: require('@/assets/images/portland-stormwings-team-window.transparent.png'),
   },
   {
     id: 'seattle-orcas',
@@ -57,6 +97,7 @@ export const HOCKEY_TEAMS: HockeyTeam[] = [
     city: 'Seattle',
     primaryColor: '#0F766E',
     secondaryColor: '#99F6E4',
+    teamWindowImage: require('@/assets/images/seattle-orcas-team-window.transparent.png'),
   },
 ];
 
