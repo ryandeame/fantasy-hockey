@@ -1,7 +1,9 @@
+import { Asset } from 'expo-asset';
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -30,6 +32,7 @@ type SwipePoint = {
 };
 
 const SWIPE_DISTANCE = 44;
+const SWIPE_STICK_IMAGE = require('@/assets/images/hockey-stick-swipe.transparent.png');
 
 type WebCoordinateEvent = {
   pageX?: number;
@@ -91,6 +94,59 @@ export function TeamSelectScreen({
   const isWideLayout = width >= 780;
   const useMobileWebSwipe = Platform.OS === 'web' && !isWideLayout;
 
+  const teamSelectImages = useMemo(
+    () => [
+      ...alphabetizedTeams
+        .map((team) => team.teamWindowImage)
+        .filter((image): image is number => image !== undefined),
+      SWIPE_STICK_IMAGE,
+    ],
+    [alphabetizedTeams],
+  );
+  const teamSelectImagesKey = useMemo(
+    () => teamSelectImages.join('|'),
+    [teamSelectImages],
+  );
+  const [loadedTeamSelectImagesKey, setLoadedTeamSelectImagesKey] =
+    useState<string | null>(null);
+  const areImagesLoaded = loadedTeamSelectImagesKey === teamSelectImagesKey;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (teamSelectImages.length === 0) {
+      void Promise.resolve().then(() => {
+        if (isMounted) {
+          setLoadedTeamSelectImagesKey(teamSelectImagesKey);
+        }
+      });
+      return;
+    }
+
+    void Asset.loadAsync(teamSelectImages)
+      .then((assets) => {
+        const assetUris = assets
+          .map((asset) => asset.localUri ?? asset.uri)
+          .filter((uri): uri is string => uri.length > 0);
+
+        if (assetUris.length === 0) {
+          return true;
+        }
+
+        return Image.prefetch(assetUris, { cachePolicy: 'memory-disk' });
+      })
+      .catch(() => false)
+      .then(() => {
+        if (isMounted) {
+          setLoadedTeamSelectImagesKey(teamSelectImagesKey);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [teamSelectImages, teamSelectImagesKey]);
+
   const handleSelectTeam = (slot: TeamSlot, team: HockeyTeam) => {
     const nextTopTeam = slot === 'top' ? team : topTeam;
     const nextBottomTeam = slot === 'bottom' ? team : bottomTeam;
@@ -118,6 +174,16 @@ export function TeamSelectScreen({
       <View style={[styles.emptyState, style]}>
         <Text selectable style={styles.emptyStateText}>
           No teams available
+        </Text>
+      </View>
+    );
+  }
+
+  if (!areImagesLoaded) {
+    return (
+      <View style={[styles.loadingState, style]}>
+        <Text selectable={false} style={styles.loadingText}>
+          Loading teams
         </Text>
       </View>
     );
@@ -181,20 +247,53 @@ function TeamSelectionPanel({
   const [swipeDirection, setSwipeDirection] = useState<SwipeDirection | null>(
     null,
   );
+  const [outgoingTeam, setOutgoingTeam] = useState<HockeyTeam | null>(null);
   const [swipeProgress] = useState(() => new Animated.Value(0));
+  const [currentImageOpacity] = useState(() => new Animated.Value(0));
+  const [spinnerProgress] = useState(() => new Animated.Value(0));
+  const [displayedTeamImageId, setDisplayedTeamImageId] = useState<
+    string | null
+  >(null);
   const swipeStartRef = useRef<SwipePoint | null>(null);
   const swipeDeltaRef = useRef({ dx: 0, dy: 0 });
-  const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSwipeAnimatingRef = useRef(false);
   const selectedTeamIndex = teams.findIndex((team) => team.id === selectedTeamId);
+  const isCurrentImageDisplayed =
+    !selectedTeam.teamWindowImage || displayedTeamImageId === selectedTeam.id;
 
   useEffect(() => {
+    if (isCurrentImageDisplayed) {
+      spinnerProgress.stopAnimation();
+      spinnerProgress.setValue(0);
+      return;
+    }
+
+    const spinnerAnimation = Animated.loop(
+      Animated.timing(spinnerProgress, {
+        toValue: 1,
+        duration: 720,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+
+    spinnerAnimation.start();
+
     return () => {
-      if (swipeTimeoutRef.current) {
-        clearTimeout(swipeTimeoutRef.current);
-      }
+      spinnerAnimation.stop();
     };
-  }, []);
+  }, [isCurrentImageDisplayed, spinnerProgress]);
+
+  const handleCurrentImageDisplay = useCallback(() => {
+    setDisplayedTeamImageId(selectedTeam.id);
+    currentImageOpacity.setValue(0);
+    Animated.timing(currentImageOpacity, {
+      toValue: 0.96,
+      duration: 120,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [currentImageOpacity, selectedTeam.id]);
 
   const selectAdjacentTeam = (direction: SwipeDirection) => {
     if (teams.length < 2) {
@@ -213,19 +312,19 @@ function TeamSelectionPanel({
     }
 
     isSwipeAnimatingRef.current = true;
+    setOutgoingTeam(selectedTeam);
     setSwipeDirection(direction);
     swipeProgress.setValue(0);
-
-    swipeTimeoutRef.current = setTimeout(() => {
-      selectAdjacentTeam(direction);
-    }, 140);
+    selectAdjacentTeam(direction);
 
     Animated.timing(swipeProgress, {
       toValue: 1,
-      duration: 340,
+      duration: 560,
+      easing: Easing.bezier(0.2, 0.78, 0.22, 1),
       useNativeDriver: true,
     }).start(() => {
       isSwipeAnimatingRef.current = false;
+      setOutgoingTeam(null);
       setSwipeDirection(null);
     });
   };
@@ -330,13 +429,38 @@ function TeamSelectionPanel({
   };
 
   const stickTranslateX = swipeProgress.interpolate({
-    inputRange: [0, 0.62, 1],
+    inputRange: [0, 0.2, 0.72, 1],
     outputRange:
       swipeDirection === 'previous'
-        ? [-190, -14, 300]
-        : [300, 14, -190],
+        ? [-210, -120, 92, 255]
+        : [315, 228, 24, -180],
+  });
+  const stickOpacity = swipeProgress.interpolate({
+    inputRange: [0, 0.1, 0.88, 1],
+    outputRange: [0, 1, 1, 0],
   });
   const stickScaleX = swipeDirection === 'next' ? -1 : 1;
+  const outgoingImageTranslateX = swipeProgress.interpolate({
+    inputRange: [0, 0.16, 0.48, 0.78, 1],
+    outputRange:
+      swipeDirection === 'previous'
+        ? [0, 16, 210, 430, 470]
+        : [0, -16, -210, -430, -470],
+  });
+  const outgoingImageOpacity = swipeProgress.interpolate({
+    inputRange: [0, 0.24, 0.66, 0.88, 1],
+    outputRange: [0.96, 0.96, 0.42, 0.08, 0],
+  });
+  const spinnerOpacity = swipeDirection
+    ? swipeProgress.interpolate({
+        inputRange: [0, 0.72, 1],
+        outputRange: [0, 0, 1],
+      })
+    : 1;
+  const spinnerRotate = spinnerProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <View
@@ -354,13 +478,59 @@ function TeamSelectionPanel({
         { backgroundColor: selectedTeam.primaryColor },
       ]}>
       {selectedTeam.teamWindowImage ? (
-        <View pointerEvents="none" style={styles.teamWindowImageFrame}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.teamWindowImageFrame,
+            { opacity: isCurrentImageDisplayed ? currentImageOpacity : 0 },
+          ]}>
           <Image
+            cachePolicy="memory-disk"
+            onDisplay={handleCurrentImageDisplay}
+            priority="high"
+            recyclingKey={`${selectedTeam.id}-team-window`}
             source={selectedTeam.teamWindowImage}
             contentFit="contain"
+            transition={0}
             style={styles.teamWindowImage}
           />
-        </View>
+        </Animated.View>
+      ) : null}
+
+      {!isCurrentImageDisplayed ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.imageLoadingSpinnerFrame, { opacity: spinnerOpacity }]}>
+          <Animated.View
+            style={[
+              styles.imageLoadingSpinner,
+              { transform: [{ rotate: spinnerRotate }] },
+            ]}
+          />
+        </Animated.View>
+      ) : null}
+
+      {outgoingTeam?.teamWindowImage && swipeDirection ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.teamWindowImageFrame,
+            styles.outgoingTeamWindowImageFrame,
+            {
+              opacity: outgoingImageOpacity,
+              transform: [{ translateX: outgoingImageTranslateX }],
+            },
+          ]}>
+          <Image
+            cachePolicy="memory-disk"
+            priority="high"
+            recyclingKey={`${outgoingTeam.id}-outgoing-team-window`}
+            source={outgoingTeam.teamWindowImage}
+            contentFit="contain"
+            transition={0}
+            style={styles.teamWindowImage}
+          />
+        </Animated.View>
       ) : null}
 
       <View style={styles.panelHeader}>
@@ -432,6 +602,7 @@ function TeamSelectionPanel({
           style={[
             styles.swipeStickFrame,
             {
+              opacity: stickOpacity,
               transform: [
                 { translateX: stickTranslateX },
                 { scaleX: stickScaleX },
@@ -439,7 +610,7 @@ function TeamSelectionPanel({
             },
           ]}>
           <Image
-            source={require('@/assets/images/hockey-stick-swipe.transparent.png')}
+            source={SWIPE_STICK_IMAGE}
             contentFit="contain"
             style={styles.swipeStick}
           />
@@ -586,6 +757,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0,
   },
+  loadingState: {
+    flex: 1,
+    minHeight: 560,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E0F2FE',
+  },
+  loadingText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+  },
   confirmButton: {
     position: 'absolute',
     left: 24,
@@ -615,12 +800,36 @@ const styles = StyleSheet.create({
     left: 0,
     overflow: 'hidden',
   },
+  outgoingTeamWindowImageFrame: {
+    zIndex: 1,
+  },
+  imageLoadingSpinnerFrame: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 36,
+    height: 36,
+    marginTop: -18,
+    marginLeft: -18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  imageLoadingSpinner: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.34)',
+    borderTopColor: '#FFFFFF',
+  },
   teamWindowImage: {
     position: 'absolute',
-    right: -120,
+    left: '50%',
     top: 0,
     width: '220%',
     height: '190%',
     opacity: 0.96,
+    transform: [{ translateX: '-50%' }],
   },
 });

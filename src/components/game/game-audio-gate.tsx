@@ -9,35 +9,14 @@ const gamePlaylist = {
   loop: 'all' as const,
   updateInterval: 250,
 };
-const WEB_AUDIO_PREFERENCE_KEY = 'fantasy-hockey.audio-preference';
 
 type WebAudioPreference = 'music' | 'muted';
-
-function getStoredWebAudioPreference() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const storedPreference = window.localStorage.getItem(
-      WEB_AUDIO_PREFERENCE_KEY,
-    );
-
-    if (storedPreference === 'music' || storedPreference === 'muted') {
-      return storedPreference;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
 
 export function GameAudioGate() {
   const playlist = useAudioPlaylist(gamePlaylist);
   const isWeb = process.env.EXPO_OS === 'web' || typeof window !== 'undefined';
   const [webAudioPreference, setWebAudioPreference] =
-    useState<WebAudioPreference | null>(() => getStoredWebAudioPreference());
+    useState<WebAudioPreference | null>(null);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const needsUserPreference = isWeb && webAudioPreference === null;
 
@@ -74,19 +53,8 @@ export function GameAudioGate() {
     });
   }, [isWeb]);
 
-  useEffect(() => {
-    if (webAudioPreference === 'music') {
-      playWebMusic();
-    }
-  }, [playWebMusic, webAudioPreference]);
-
   const handlePlayMusic = () => {
     if (isWeb && typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(WEB_AUDIO_PREFERENCE_KEY, 'music');
-      } catch {
-        // Storage failures should not block the user's current choice.
-      }
       setWebAudioPreference('music');
       playWebMusic();
       return;
@@ -100,10 +68,6 @@ export function GameAudioGate() {
   };
 
   const handleNoSound = () => {
-    if (!isWeb || typeof window === 'undefined') {
-      return;
-    }
-
     const audio = webAudioRef.current;
 
     if (audio) {
@@ -111,11 +75,6 @@ export function GameAudioGate() {
       audio.currentTime = 0;
     }
 
-    try {
-      window.localStorage.setItem(WEB_AUDIO_PREFERENCE_KEY, 'muted');
-    } catch {
-      // Storage failures should not block the user's current choice.
-    }
     setWebAudioPreference('muted');
   };
 
@@ -127,10 +86,10 @@ export function GameAudioGate() {
     <View pointerEvents="box-none" style={styles.overlay}>
       <View style={styles.dialog}>
         <Text selectable style={styles.title}>
-          Game audio
+          Audio
         </Text>
         <Text selectable style={styles.message}>
-          Choose whether this browser should play music.
+          Play music?
         </Text>
         <View style={styles.buttonRow}>
           <Pressable
@@ -169,35 +128,37 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     zIndex: 20,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    justifyContent: 'flex-start',
+    paddingTop: 18,
+    paddingRight: 14,
+    paddingLeft: 14,
   },
   dialog: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 260,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.58)',
     backgroundColor: 'rgba(8, 31, 45, 0.9)',
-    padding: 18,
-    gap: 12,
+    padding: 10,
+    gap: 8,
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0,
   },
   message: {
     color: 'rgba(255, 255, 255, 0.86)',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0,
-    lineHeight: 20,
+    lineHeight: 16,
   },
   button: {
     flex: 1,
-    height: 46,
+    height: 34,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -205,7 +166,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
@@ -215,7 +176,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#0F172A',
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0,
     textTransform: 'uppercase',
