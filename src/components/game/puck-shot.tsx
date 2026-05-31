@@ -3,36 +3,44 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { GamePoint } from '@/components/game/aim-types';
+import { ShotResolution } from '@/components/game/shot-scoring';
 
 type ActiveShot = {
   progress: number;
+  resolution: ShotResolution;
   start: GamePoint;
   target: GamePoint;
 };
 
 type PuckShotProps = {
+  onShotComplete?: (resolution: ShotResolution) => void;
   origin: GamePoint;
   puckSize?: number;
-  targetPoint: GamePoint;
+  shotResolution: ShotResolution;
 };
 
 const SHOT_DURATION = 620;
 
-export function PuckShot({ origin, puckSize = 34, targetPoint }: PuckShotProps) {
+export function PuckShot({
+  onShotComplete,
+  origin,
+  puckSize = 34,
+  shotResolution,
+}: PuckShotProps) {
   const [activeShot, setActiveShot] = useState<ActiveShot | null>(null);
   const activeShotRef = useRef<ActiveShot | null>(null);
   const frameRef = useRef<number | null>(null);
   const shotStartTimeRef = useRef<number | null>(null);
   const latestOriginRef = useRef(origin);
-  const latestTargetRef = useRef(targetPoint);
+  const latestResolutionRef = useRef(shotResolution);
 
   useEffect(() => {
     latestOriginRef.current = origin;
   }, [origin]);
 
   useEffect(() => {
-    latestTargetRef.current = targetPoint;
-  }, [targetPoint]);
+    latestResolutionRef.current = shotResolution;
+  }, [shotResolution]);
 
   const clearFrame = useCallback(() => {
     if (frameRef.current !== null) {
@@ -52,10 +60,21 @@ export function PuckShot({ origin, puckSize = 34, targetPoint }: PuckShotProps) 
         ? { ...activeShotRef.current, progress }
         : null;
 
-      if (!nextShot || progress >= 1) {
+      if (!nextShot) {
         activeShotRef.current = null;
         shotStartTimeRef.current = null;
         setActiveShot(null);
+        clearFrame();
+        return;
+      }
+
+      if (progress >= 1) {
+        const completedResolution = nextShot.resolution;
+
+        activeShotRef.current = null;
+        shotStartTimeRef.current = null;
+        setActiveShot(null);
+        onShotComplete?.(completedResolution);
         clearFrame();
         return;
       }
@@ -64,7 +83,7 @@ export function PuckShot({ origin, puckSize = 34, targetPoint }: PuckShotProps) 
       setActiveShot(nextShot);
       frameRef.current = requestAnimationFrame(animateShotFrame);
     },
-    [clearFrame],
+    [clearFrame, onShotComplete],
   );
 
   const fireShot = useCallback(() => {
@@ -74,8 +93,9 @@ export function PuckShot({ origin, puckSize = 34, targetPoint }: PuckShotProps) 
 
     const nextShot = {
       progress: 0,
+      resolution: latestResolutionRef.current,
       start: latestOriginRef.current,
-      target: latestTargetRef.current,
+      target: latestResolutionRef.current.displayPoint,
     };
 
     activeShotRef.current = nextShot;

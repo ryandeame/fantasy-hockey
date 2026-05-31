@@ -6,6 +6,10 @@ import { AimPoint, GameRect } from '@/components/game/aim-types';
 import { PuckShot } from '@/components/game/puck-shot';
 import { MoveAxis, ShooterControls } from '@/components/game/shooter-controls';
 import { ShooterSprite } from '@/components/game/shooter-sprite';
+import {
+  resolveGoalShot,
+  ShotResolution,
+} from '@/components/game/shot-scoring';
 
 export type ShooterSpriteLayout = {
   bottom: number;
@@ -17,6 +21,7 @@ type ShooterPlayerProps = {
   goalBottomY: number;
   goalTargetArea?: GameRect;
   movementRange: number;
+  onShotComplete?: (resolution: ShotResolution) => void;
   showMobileControls: boolean;
   spriteLayout: ShooterSpriteLayout;
 };
@@ -29,6 +34,7 @@ export function ShooterPlayer({
   goalBottomY,
   goalTargetArea,
   movementRange,
+  onShotComplete,
   showMobileControls,
   spriteLayout,
 }: ShooterPlayerProps) {
@@ -101,10 +107,12 @@ export function ShooterPlayer({
     height: spriteLayout.width * 0.16,
   };
   const activeGoalTargetArea = goalTargetArea ?? fallbackGoalTargetArea;
-  const puckTarget = {
-    x: activeGoalTargetArea.x + activeGoalTargetArea.width * aim.xRatio,
-    y: activeGoalTargetArea.y + activeGoalTargetArea.height * aim.yRatio,
-  };
+  const shotResolution = resolveGoalShot({
+    aim,
+    goalImageRect: activeGoalTargetArea,
+    movementRange,
+    shooterOffsetX,
+  });
 
   return (
     <View pointerEvents="box-none" style={styles.playerLayer}>
@@ -120,7 +128,11 @@ export function ShooterPlayer({
           },
         ]}
       />
-      <PuckShot origin={puckOrigin} targetPoint={puckTarget} />
+      <PuckShot
+        onShotComplete={onShotComplete}
+        origin={puckOrigin}
+        shotResolution={shotResolution}
+      />
       <AimControl aim={aim} onAimChange={setAim} />
       <ShooterControls
         onAxisChange={handleAxisChange}
