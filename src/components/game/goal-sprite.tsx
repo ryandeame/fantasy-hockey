@@ -9,7 +9,7 @@ export function GoalSprite({ style }: GoalSpriteProps) {
   return (
     <View pointerEvents="none" style={[styles.container, style]}>
       <Image
-        source={require('@/assets/images/d11894f6-cfe0-4c4b-a865-93bfd9959bf4.transparent.png')}
+        source={require('@/assets/images/net/d11894f6-cfe0-4c4b-a865-93bfd9959bf4.transparent.png')}
         contentFit="contain"
         style={styles.image}
       />

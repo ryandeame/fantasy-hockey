@@ -6,6 +6,7 @@ const GOAL_TALLY_LEFT = 190;
 const GOAL_TALLY_RIGHT = 1346;
 const GOAL_TALLY_TOP = 140;
 const GOAL_TALLY_BOTTOM = 870;
+const OPEN_NET_TARGET_BOTTOM = GOAL_TALLY_BOTTOM;
 const SHOOTER_HORIZONTAL_WEIGHT_RATIO = 0.14;
 
 export type ShotOutcome = 'goal' | 'miss';
@@ -51,7 +52,7 @@ export function resolveGoalShot({
     ),
   );
   const originalY = Math.round(
-    clampRatio(aim.yRatio) * ORIGINAL_GOAL_HEIGHT,
+    clampRatio(aim.yRatio) * OPEN_NET_TARGET_BOTTOM,
   );
   const displayPoint = {
     x: goalImageRect.x + goalImageRect.width * (originalX / ORIGINAL_GOAL_WIDTH),

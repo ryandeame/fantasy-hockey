@@ -8,11 +8,11 @@ import { BottomTabInset } from '@/constants/theme';
 import { HockeyTeam } from '@/data/teams';
 
 type HockeyGameSceneProps = {
-  awayTeam?: HockeyTeam;
-  homeTeam?: HockeyTeam;
+  goalieTeam?: HockeyTeam;
+  shooterTeam?: HockeyTeam;
 };
 
-export function HockeyGameScene({ awayTeam, homeTeam }: HockeyGameSceneProps) {
+export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProps) {
   const { height, width } = useWindowDimensions();
   const [goals, setGoals] = useState(0);
   const [misses, setMisses] = useState(0);
@@ -27,7 +27,8 @@ export function HockeyGameScene({ awayTeam, homeTeam }: HockeyGameSceneProps) {
   const goalLeft = sceneLeft + (sceneWidth - goalWidth) / 2;
   const shooterMovementRange = sceneWidth * 0.22;
   const isMobileWeb = process.env.EXPO_OS === 'web' && width < 768;
-  const faceoffTint = homeTeam?.secondaryColor ?? awayTeam?.secondaryColor ?? '#3077BD';
+  const faceoffTint =
+    shooterTeam?.secondaryColor ?? goalieTeam?.secondaryColor ?? '#3077BD';
   const handleShotComplete = useCallback((resolution: ShotResolution) => {
     setLastShotResolution(resolution);
 
@@ -96,6 +97,7 @@ export function HockeyGameScene({ awayTeam, homeTeam }: HockeyGameSceneProps) {
         }}
         movementRange={shooterMovementRange}
         onShotComplete={handleShotComplete}
+        shooterImage={shooterTeam?.shooterImage}
         showMobileControls={isMobileWeb}
         spriteLayout={{
           bottom: BottomTabInset,

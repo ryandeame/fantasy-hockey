@@ -32,7 +32,7 @@ type SwipePoint = {
 };
 
 const SWIPE_DISTANCE = 44;
-const SWIPE_STICK_IMAGE = require('@/assets/images/hockey-stick-swipe.transparent.png');
+const SWIPE_STICK_IMAGE = require('@/assets/images/hockey-stick/hockey-stick-swipe.transparent.png');
 
 type WebCoordinateEvent = {
   pageX?: number;
@@ -197,7 +197,7 @@ export function TeamSelectScreen({
         style,
       ]}>
       <TeamSelectionPanel
-        label="Home"
+        label="Goalie"
         selectedTeam={topTeam}
         selectedTeamId={topTeam.id}
         teams={alphabetizedTeams}
@@ -205,7 +205,7 @@ export function TeamSelectScreen({
         onSelectTeam={(team) => handleSelectTeam('top', team)}
       />
       <TeamSelectionPanel
-        label="Away"
+        label="Shooter"
         selectedTeam={bottomTeam}
         selectedTeamId={bottomTeam.id}
         teams={alphabetizedTeams}

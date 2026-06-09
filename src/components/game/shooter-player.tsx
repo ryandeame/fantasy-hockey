@@ -22,6 +22,7 @@ type ShooterPlayerProps = {
   goalTargetArea?: GameRect;
   movementRange: number;
   onShotComplete?: (resolution: ShotResolution) => void;
+  shooterImage?: number;
   showMobileControls: boolean;
   spriteLayout: ShooterSpriteLayout;
 };
@@ -35,6 +36,7 @@ export function ShooterPlayer({
   goalTargetArea,
   movementRange,
   onShotComplete,
+  shooterImage,
   showMobileControls,
   spriteLayout,
 }: ShooterPlayerProps) {
@@ -117,6 +119,7 @@ export function ShooterPlayer({
   return (
     <View pointerEvents="box-none" style={styles.playerLayer}>
       <ShooterSprite
+        shooterImage={shooterImage}
         style={[
           {
             bottom: spriteLayout.bottom,

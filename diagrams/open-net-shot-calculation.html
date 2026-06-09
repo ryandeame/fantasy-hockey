@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open Net Shot Calculation</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ice: #eefaff;
+        --ink: #0f172a;
+        --muted: #475569;
+        --blue: #2563eb;
+        --red: #dc2626;
+        --green: #16a34a;
+        --panel: rgba(255, 255, 255, 0.94);
+        --line: rgba(15, 23, 42, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background:
+          linear-gradient(rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+          var(--ice);
+        background-size: 48px 48px;
+      }
+
+      main {
+        width: min(1380px, 100%);
+        margin: 0 auto;
+        padding: 28px 24px 40px;
+      }
+
+      header {
+        display: grid;
+        gap: 6px;
+        max-width: 900px;
+        margin: 0 auto 22px;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 48px);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .diagram {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(250px, 1fr) minmax(360px, 720px) minmax(250px, 1fr);
+        grid-template-rows: auto auto auto;
+        gap: 22px;
+        align-items: center;
+      }
+
+      .net-stage {
+        position: relative;
+        grid-column: 2;
+        grid-row: 1 / 4;
+        display: grid;
+        place-items: center;
+        min-height: 520px;
+      }
+
+      .net-frame {
+        position: relative;
+        width: min(100%, 720px);
+        aspect-ratio: 1.5;
+      }
+
+      .net-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 18px 30px rgba(15, 23, 42, 0.18));
+      }
+
+      .goal-box {
+        position: absolute;
+        left: 12.3698%;
+        top: 13.6719%;
+        width: 75.2604%;
+        height: 71.2891%;
+        border: 3px solid var(--green);
+        background: rgba(34, 197, 94, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+      }
+
+      .lower-image-area {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 84.9609%;
+        bottom: 0;
+        border-top: 2px dashed var(--red);
+        background: repeating-linear-gradient(
+          -45deg,
+          rgba(220, 38, 38, 0.12),
+          rgba(220, 38, 38, 0.12) 10px,
+          rgba(220, 38, 38, 0.04) 10px,
+          rgba(220, 38, 38, 0.04) 20px
+        );
+      }
+
+      .source-grid {
+        position: absolute;
+        inset: 0;
+        border: 1px dashed rgba(15, 23, 42, 0.22);
+        pointer-events: none;
+      }
+
+      .center-shot {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 16px;
+        height: 16px;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22);
+        transform: translate(-50%, -50%);
+      }
+
+      .axis-label {
+        position: absolute;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.86);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .axis-label.top-left {
+        left: 0;
+        top: -34px;
+      }
+
+      .axis-label.bottom-right {
+        right: 0;
+        bottom: -34px;
+      }
+
+      .axis-label.goal-bounds {
+        right: 7%;
+        top: 11%;
+        color: #166534;
+      }
+
+      .axis-label.target-bottom {
+        left: 5%;
+        top: calc(84.9609% + 6px);
+        color: #991b1b;
+      }
+
+      .callout {
+        position: relative;
+        z-index: 2;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+
+      .callout h2 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .callout p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .callout code {
+        color: #1e40af;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.92em;
+        font-weight: 700;
+      }
+
+      .left-top {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: start;
+      }
+
+      .left-mid {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .left-bottom {
+        grid-column: 1;
+        grid-row: 3;
+        align-self: end;
+      }
+
+      .right-top {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: start;
+      }
+
+      .right-mid {
+        grid-column: 3;
+        grid-row: 2;
+      }
+
+      .right-bottom {
+        grid-column: 3;
+        grid-row: 3;
+        align-self: end;
+      }
+
+      .arrows {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .arrow {
+        fill: none;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .arrow.blue {
+        stroke: var(--blue);
+      }
+
+      .arrow.green {
+        stroke: var(--green);
+      }
+
+      .arrow.red {
+        stroke: var(--red);
+      }
+
+      .arrow.gray {
+        stroke: #64748b;
+      }
+
+      .footer-note {
+        max-width: 900px;
+        margin: 22px auto 0;
+        padding: 14px 16px;
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        border-radius: 8px;
+        color: #7f1d1d;
+        background: rgba(254, 242, 242, 0.9);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 980px) {
+        main {
+          padding: 22px 16px 32px;
+        }
+
+        .diagram {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .net-stage {
+          order: 1;
+          width: 100%;
+          min-height: auto;
+          padding: 34px 0;
+        }
+
+        .callout {
+          width: min(100%, 720px);
+        }
+
+        .left-top,
+        .left-mid,
+        .left-bottom,
+        .right-top,
+        .right-mid,
+        .right-bottom {
+          align-self: center;
+        }
+
+        .arrows {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Current Open-Net Shot Calculation</h1>
+        <p class="subtitle">
+          This documents the algorithm before a goalie sprite participates. The
+          net image is treated as a 1536 x 1024 source image, but vertical shot
+          targeting now bottoms out at source Y 870 instead of the image bottom.
+        </p>
+      </header>
+
+      <section class="diagram" aria-label="Shot calculation diagram">
+        <svg class="arrows" viewBox="0 0 1380 640" preserveAspectRatio="none">
+          <defs>
+            <marker
+              id="arrow-blue"
+              markerWidth="10"
+              markerHeight="10"
+              refX="8"
+              refY="5"
+              orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+            </marker>
+            <marker
+              id="arrow-green"
+              markerWidth="10"
+              markerHeight="10"
+              refX="8"
+              refY="5"
+              orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a" />
+            </marker>
+            <marker
+              id="arrow-red"
+              markerWidth="10"
+              markerHeight="10"
+              refX="8"
+              refY="5"
+              orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+            </marker>
+            <marker
+              id="arrow-gray"
+              markerWidth="10"
+              markerHeight="10"
+              refX="8"
+              refY="5"
+              orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+            </marker>
+          </defs>
+          <path class="arrow blue" marker-end="url(#arrow-blue)" d="M 286 92 C 430 84, 515 110, 606 188" />
+          <path class="arrow gray" marker-end="url(#arrow-gray)" d="M 294 318 C 430 320, 494 306, 600 292" />
+          <path class="arrow red" marker-end="url(#arrow-red)" d="M 280 538 C 412 500, 500 443, 635 362" />
+          <path class="arrow green" marker-end="url(#arrow-green)" d="M 1086 92 C 950 96, 884 144, 786 230" />
+          <path class="arrow blue" marker-end="url(#arrow-blue)" d="M 1090 318 C 962 322, 880 323, 766 323" />
+          <path class="arrow gray" marker-end="url(#arrow-gray)" d="M 1084 536 C 934 494, 850 430, 728 338" />
+        </svg>
+
+        <article class="callout left-top">
+          <h2>1. Goal Display Rect</h2>
+          <p>
+            The scene sizes the open net as
+            <code>goalWidth = min(sceneWidth * 0.48, 420)</code> and
+            <code>goalHeight = goalWidth / 1.5</code>, then centers it at
+            <code>{ x: goalLeft, y: rinkTop }</code>.
+          </p>
+        </article>
+
+        <article class="callout left-mid">
+          <h2>2. Aim Ratios</h2>
+          <p>
+            The joystick outputs <code>xRatio</code> and <code>yRatio</code>
+            from 0 to 1. Center aim is <code>{ xRatio: 0.5, yRatio: 0.5 }</code>.
+            Up/left move toward 0; down/right move toward 1. Full-down aim maps
+            to source Y <code>870</code>.
+          </p>
+        </article>
+
+        <article class="callout left-bottom">
+          <h2>3. Shooter Offset</h2>
+          <p>
+            Horizontal skating adds aim bias only on X:
+            <code>shooterOffsetX / movementRange</code> is clamped to -1..1,
+            then multiplied by <code>1536 * 0.14</code>. Max bias is about
+            <code>+/-215px</code> in source coordinates.
+          </p>
+        </article>
+
+        <div class="net-stage">
+          <div class="net-frame">
+            <img
+              class="net-image"
+              src="../assets/images/net/d11894f6-cfe0-4c4b-a865-93bfd9959bf4.transparent.png"
+              alt="Open hockey net sprite"
+            />
+            <div class="source-grid" aria-hidden="true"></div>
+            <div class="lower-image-area" aria-hidden="true"></div>
+            <div class="goal-box" aria-hidden="true"></div>
+            <div class="center-shot" aria-hidden="true"></div>
+            <div class="axis-label top-left">source (0, 0)</div>
+            <div class="axis-label bottom-right">source (1536, 1024)</div>
+            <div class="axis-label goal-bounds">goal tally box</div>
+            <div class="axis-label target-bottom">shot bottom Y = 870</div>
+          </div>
+        </div>
+
+        <article class="callout right-top">
+          <h2>4. Source Target</h2>
+          <p>
+            The final source point is
+            <code>x = round(clamp(xRatio * 1536 + xBias, 0, 1536))</code> and
+            <code>y = round(clamp(yRatio, 0, 1) * 870)</code>. The bottom
+            transparent/lower image area is no longer targetable.
+          </p>
+        </article>
+
+        <article class="callout right-mid">
+          <h2>5. Display Target</h2>
+          <p>
+            The source point maps back onto the rendered net:
+            <code>displayX = goalRect.x + goalRect.width * (x / 1536)</code>,
+            and Y still uses source-image coordinates against <code>1024</code>.
+            Since source Y maxes at <code>870</code>, the puck stops at the
+            mouth of the goal instead of sliding below it.
+          </p>
+        </article>
+
+        <article class="callout right-bottom">
+          <h2>6. Goal Or Miss</h2>
+          <p>
+            A shot counts as a goal only when
+            <code>190 <= x <= 1346</code> and
+            <code>140 <= y <= 870</code>. Full-down aim lands exactly on that
+            bottom edge. The current open net has no post, goalie, puck-size,
+            velocity, or collision-mask check.
+          </p>
+        </article>
+      </section>
+
+      <p class="footer-note">
+        Animation happens after this decision: pressing Space freezes the latest
+        origin and resolved display target, moves the puck linearly for 620ms,
+        and scales it down with <code>scale = 1 - progress * 0.42</code>. The
+        scoreboard uses the already-resolved source point and outcome.
+      </p>
+    </main>
+  </body>
+</html>

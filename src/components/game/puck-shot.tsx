@@ -151,7 +151,7 @@ export function PuckShot({
         },
       ]}>
       <Image
-        source={require('@/assets/images/puck.transparent.png')}
+        source={require('@/assets/images/puck/puck.transparent.png')}
         contentFit="contain"
         style={styles.image}
       />
