@@ -1,7 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { GoalSprite } from '@/components/game/goal-sprite';
+import { goalieHasOpaqueAlphaAtPoint } from '@/components/game/goalie-alpha-collision';
+import { GoalieSprite } from '@/components/game/goalie-sprite';
 import { ShooterPlayer } from '@/components/game/shooter-player';
 import { ShotResolution } from '@/components/game/shot-scoring';
 import { BottomTabInset } from '@/constants/theme';
@@ -16,6 +18,8 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
   const { height, width } = useWindowDimensions();
   const [goals, setGoals] = useState(0);
   const [misses, setMisses] = useState(0);
+  const [saves, setSaves] = useState(0);
+  const [goalieOffsetX, setGoalieOffsetX] = useState(0);
   const [lastShotResolution, setLastShotResolution] =
     useState<ShotResolution | null>(null);
   const sceneWidth = Math.min(width, 900);
@@ -25,15 +29,69 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
   const rinkTop = Math.max(height * 0.1, 52);
   const sceneLeft = (width - sceneWidth) / 2;
   const goalLeft = sceneLeft + (sceneWidth - goalWidth) / 2;
+  const goalieWidth = goalHeight * 0.88;
+  const goalieMovementRange = Math.max(0, (goalWidth - goalieWidth) * 0.36);
+  const goalieRect = useMemo(
+    () => ({
+      x: goalLeft + (goalWidth - goalieWidth) / 2 + goalieOffsetX,
+      y: rinkTop + goalHeight * 0.05,
+      width: goalieWidth,
+      height: goalieWidth,
+    }),
+    [goalHeight, goalieOffsetX, goalieWidth, goalLeft, goalWidth, rinkTop],
+  );
   const shooterMovementRange = sceneWidth * 0.22;
   const isMobileWeb = process.env.EXPO_OS === 'web' && width < 768;
   const faceoffTint =
     shooterTeam?.secondaryColor ?? goalieTeam?.secondaryColor ?? '#3077BD';
+
+  useEffect(() => {
+    let frameId: number | null = null;
+    let startedAt: number | null = null;
+    const duration = 2600;
+
+    const tick = (time: number) => {
+      startedAt ??= time;
+      const progress = ((time - startedAt) % duration) / duration;
+      setGoalieOffsetX(Math.sin(progress * Math.PI * 2) * goalieMovementRange);
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [goalieMovementRange]);
+
+  const resolveShotAtImpact = useCallback(
+    (resolution: ShotResolution): ShotResolution => {
+      if (resolution.outcome !== 'goal') {
+        return resolution;
+      }
+
+      const goalieHit = goalieHasOpaqueAlphaAtPoint({
+        point: resolution.displayPoint,
+        rect: goalieRect,
+      });
+
+      return goalieHit ? { ...resolution, outcome: 'save' } : resolution;
+    },
+    [goalieRect],
+  );
+
   const handleShotComplete = useCallback((resolution: ShotResolution) => {
     setLastShotResolution(resolution);
 
     if (resolution.outcome === 'goal') {
       setGoals((currentGoals) => currentGoals + 1);
+      return;
+    }
+
+    if (resolution.outcome === 'save') {
+      setSaves((currentSaves) => currentSaves + 1);
       return;
     }
 
@@ -49,6 +107,9 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         </Text>
         <Text selectable={false} style={styles.scoreText}>
           MISS {misses}
+        </Text>
+        <Text selectable={false} style={styles.scoreText}>
+          SAVE {saves}
         </Text>
         <Text selectable={false} style={styles.scoreText}>
           RESULT {lastShotResolution?.outcome.toUpperCase() ?? '-'}
@@ -86,6 +147,16 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
           },
         ]}
       />
+      <GoalieSprite
+        style={[
+          styles.goalie,
+          {
+            left: goalieRect.x,
+            top: goalieRect.y,
+            width: goalieRect.width,
+          },
+        ]}
+      />
 
       <ShooterPlayer
         goalBottomY={rinkTop + goalHeight}
@@ -97,6 +168,7 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         }}
         movementRange={shooterMovementRange}
         onShotComplete={handleShotComplete}
+        resolveShotAtImpact={resolveShotAtImpact}
         shooterImage={shooterTeam?.shooterImage}
         showMobileControls={isMobileWeb}
         spriteLayout={{
@@ -170,5 +242,9 @@ const styles = StyleSheet.create({
   goal: {
     position: 'absolute',
     zIndex: 1,
+  },
+  goalie: {
+    position: 'absolute',
+    zIndex: 2,
   },
 });

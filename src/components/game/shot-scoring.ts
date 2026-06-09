@@ -9,7 +9,7 @@ const GOAL_TALLY_BOTTOM = 870;
 const OPEN_NET_TARGET_BOTTOM = GOAL_TALLY_BOTTOM;
 const SHOOTER_HORIZONTAL_WEIGHT_RATIO = 0.14;
 
-export type ShotOutcome = 'goal' | 'miss';
+export type ShotOutcome = 'goal' | 'miss' | 'save';
 
 export type ShotResolution = {
   displayPoint: GamePoint;

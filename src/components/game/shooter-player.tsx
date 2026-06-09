@@ -22,6 +22,7 @@ type ShooterPlayerProps = {
   goalTargetArea?: GameRect;
   movementRange: number;
   onShotComplete?: (resolution: ShotResolution) => void;
+  resolveShotAtImpact?: (resolution: ShotResolution) => ShotResolution;
   shooterImage?: number;
   showMobileControls: boolean;
   spriteLayout: ShooterSpriteLayout;
@@ -36,6 +37,7 @@ export function ShooterPlayer({
   goalTargetArea,
   movementRange,
   onShotComplete,
+  resolveShotAtImpact,
   shooterImage,
   showMobileControls,
   spriteLayout,
@@ -134,6 +136,7 @@ export function ShooterPlayer({
       <PuckShot
         onShotComplete={onShotComplete}
         origin={puckOrigin}
+        resolveShotAtImpact={resolveShotAtImpact}
         shotResolution={shotResolution}
       />
       <AimControl aim={aim} onAimChange={setAim} />

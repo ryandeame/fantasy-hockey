@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
-export const GOALIE_SPRITE_SOURCE = require('@/assets/images/goalies/fe4e80da-74b4-4b75-996b-f1cae7b3226c.transparent.png');
+export const GOALIE_SPRITE_SOURCE = require('@/assets/images/goalies/fe4e80da-74b4-4b75-996b-f1cae7b3226c.transparent.webp');
 
 type GoalieSpriteProps = {
   style?: StyleProp<ViewStyle>;
