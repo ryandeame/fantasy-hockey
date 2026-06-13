@@ -35,6 +35,10 @@ yarn-error.*
 .env
 .env*.local
 
+# local editor/agent settings
+/.claude/
+/.vscode/
+
 # reference/source images outside bundled app assets
 /images/
 
