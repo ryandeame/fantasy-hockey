@@ -1,8 +1,8 @@
 import { GamePoint, GameRect } from '@/components/game/aim-types';
-import { GOALIE_ALPHA_MASK, GoalieAlphaMask } from '@/components/game/goalie-alpha-mask';
+import { GoalieAlphaMask } from '@/components/game/goalie-alpha-mask';
 
 type GoalieCollisionInput = {
-  mask?: GoalieAlphaMask;
+  mask: GoalieAlphaMask;
   point: GamePoint;
   rect: GameRect;
 };
@@ -31,7 +31,7 @@ function rowHasOpaquePixel(
 }
 
 export function goalieHasOpaqueAlphaAtPoint({
-  mask = GOALIE_ALPHA_MASK,
+  mask,
   point,
   rect,
 }: GoalieCollisionInput) {

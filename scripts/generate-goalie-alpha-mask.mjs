@@ -4,89 +4,149 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE_IMAGE = resolve(
-  ROOT,
-  'assets/images/goalies/fe4e80da-74b4-4b75-996b-f1cae7b3226c.transparent.webp',
-);
-const RAW_ALPHA = resolve(ROOT, 'tmp/goalie-alpha.raw');
-const OUTPUT_FILE = resolve(ROOT, 'src/components/game/goalie-alpha-mask.ts');
+const SOURCE_DIR = resolve(ROOT, 'assets/images/goalies/in-game/to-use');
+const OUTPUT_DIR = resolve(ROOT, 'assets/images/goalies/in-game');
+const ALPHA_MAP_DIR = resolve(ROOT, 'assets/images/goalies/alpha-maps');
+const RAW_ALPHA_DIR = resolve(ROOT, 'tmp/goalie-alpha');
 const WIDTH = 1254;
 const HEIGHT = 1254;
 const ALPHA_THRESHOLD = 0;
+const DEFAULT_CHROMA_FUZZ = '8%';
+const RED_CHROMA_FUZZ = '6%';
 
-mkdirSync(dirname(RAW_ALPHA), { recursive: true });
+const GOALIES = [
+  {
+    teamId: 'calgary-comets',
+    source: 'Gemini_Generated_Image_29wbht29wbht29wb.png',
+    chroma: 'srgb(221,0,225)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'minnesota-pines',
+    source: 'Gemini_Generated_Image_ab57tnab57tnab57.png',
+    chroma: 'srgb(234,2,238)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'montreal-beavers',
+    source: 'Gemini_Generated_Image_aeon8daeon8daeon.png',
+    chroma: 'srgb(222,0,227)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'portland-stormwings',
+    source: 'Gemini_Generated_Image_feqxcmfeqxcmfeqx.png',
+    chroma: 'srgb(225,0,228)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'boston-lobsters',
+    source: 'Gemini_Generated_Image_hpo0p1hpo0p1hpo0.png',
+    chroma: 'srgb(226,0,234)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'seattle-orcas',
+    source: 'Gemini_Generated_Image_jommd3jommd3jomm.png',
+    chroma: 'srgb(216,1,227)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'las-vegas-raccoons',
+    source: 'Gemini_Generated_Image_opr0stopr0stopr0.png',
+    chroma: 'srgb(229,2,9)',
+    fuzz: RED_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'anchorage-icehawks',
+    source: 'Gemini_Generated_Image_pn0ym1pn0ym1pn0y.png',
+    chroma: 'srgb(228,0,237)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'halifax-narwhals',
+    source: 'Gemini_Generated_Image_roofwtroofwtroof.png',
+    chroma: 'srgb(220,1,228)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+  {
+    teamId: 'detroit-blades',
+    source: 'Gemini_Generated_Image_vs1o2dvs1o2dvs1o.png',
+    chroma: 'srgb(222,0,228)',
+    fuzz: DEFAULT_CHROMA_FUZZ,
+  },
+];
 
-execFileSync('magick', [
-  SOURCE_IMAGE,
-  '-alpha',
-  'extract',
-  '-depth',
-  '8',
-  `gray:${RAW_ALPHA}`,
-]);
-
-const alpha = readFileSync(RAW_ALPHA);
-
-if (alpha.length !== WIDTH * HEIGHT) {
-  throw new Error(
-    `Expected ${WIDTH * HEIGHT} alpha bytes, received ${alpha.length}`,
-  );
+function toConstantName(teamId) {
+  return `${teamId.replaceAll('-', '_').toUpperCase()}_GOALIE_ALPHA_MASK`;
 }
 
-const rows = [];
-let opaquePixelCount = 0;
+function buildAlphaRuns(rawAlpha) {
+  if (rawAlpha.length !== WIDTH * HEIGHT) {
+    throw new Error(
+      `Expected ${WIDTH * HEIGHT} alpha bytes, received ${rawAlpha.length}`,
+    );
+  }
 
-for (let y = 0; y < HEIGHT; y += 1) {
-  const runs = [];
-  let runStart = null;
-  const rowStart = y * WIDTH;
+  const rows = [];
+  let opaquePixelCount = 0;
 
-  for (let x = 0; x < WIDTH; x += 1) {
-    const isOpaque = alpha[rowStart + x] > ALPHA_THRESHOLD;
+  for (let y = 0; y < HEIGHT; y += 1) {
+    const runs = [];
+    let runStart = null;
+    const rowStart = y * WIDTH;
 
-    if (isOpaque) {
-      opaquePixelCount += 1;
+    for (let x = 0; x < WIDTH; x += 1) {
+      const isOpaque = rawAlpha[rowStart + x] > ALPHA_THRESHOLD;
 
-      if (runStart === null) {
-        runStart = x;
+      if (isOpaque) {
+        opaquePixelCount += 1;
+
+        if (runStart === null) {
+          runStart = x;
+        }
+      } else if (runStart !== null) {
+        runs.push([runStart, x - 1]);
+        runStart = null;
       }
-    } else if (runStart !== null) {
-      runs.push([runStart, x - 1]);
-      runStart = null;
     }
+
+    if (runStart !== null) {
+      runs.push([runStart, WIDTH - 1]);
+    }
+
+    rows.push(runs);
   }
 
-  if (runStart !== null) {
-    runs.push([runStart, WIDTH - 1]);
-  }
-
-  rows.push(runs);
+  return {
+    opaquePixelCount,
+    rows,
+  };
 }
 
-const rowsSource = rows
-  .map((runs) => {
-    if (runs.length === 0) {
-      return '  []';
-    }
+function writeAlphaMap({ alphaMapPath, constantName, opaquePixelCount, rows, webpPath }) {
+  const rowsSource = rows
+    .map((runs) => {
+      if (runs.length === 0) {
+        return '  []';
+      }
 
-    return `  [${runs.map(([start, end]) => `[${start}, ${end}]`).join(', ')}]`;
-  })
-  .join(',\n');
+      return `  [${runs
+        .map(([start, end]) => `[${start}, ${end}]`)
+        .join(', ')}]`;
+    })
+    .join(',\n');
 
-const output = `// Generated by scripts/generate-goalie-alpha-mask.mjs.
-// Source: assets/images/goalies/fe4e80da-74b4-4b75-996b-f1cae7b3226c.transparent.webp
+  const relativeSource = webpPath
+    .replace(`${ROOT}\\`, '')
+    .replaceAll('\\', '/');
 
-export type GoalieAlphaRun = readonly [number, number];
+  const output = `// Generated by scripts/generate-goalie-alpha-mask.mjs.
+// Source: ${relativeSource}
 
-export type GoalieAlphaMask = {
-  alphaThreshold: number;
-  height: number;
-  opaquePixelCount: number;
-  opaqueRunsByY: readonly (readonly GoalieAlphaRun[])[];
-  width: number;
-};
+import type { GoalieAlphaMask } from '@/components/game/goalie-alpha-mask';
 
-export const GOALIE_ALPHA_MASK: GoalieAlphaMask = {
+export const ${constantName}: GoalieAlphaMask = {
   alphaThreshold: ${ALPHA_THRESHOLD},
   height: ${HEIGHT},
   opaquePixelCount: ${opaquePixelCount},
@@ -97,8 +157,59 @@ ${rowsSource}
 };
 `;
 
-writeFileSync(OUTPUT_FILE, output);
+  writeFileSync(alphaMapPath, output);
+}
 
-console.log(
-  `Wrote ${OUTPUT_FILE} with ${opaquePixelCount} opaque pixels across ${rows.length} rows.`,
-);
+mkdirSync(OUTPUT_DIR, { recursive: true });
+mkdirSync(ALPHA_MAP_DIR, { recursive: true });
+mkdirSync(RAW_ALPHA_DIR, { recursive: true });
+
+for (const goalie of GOALIES) {
+  const sourcePath = resolve(SOURCE_DIR, goalie.source);
+  const webpPath = resolve(
+    OUTPUT_DIR,
+    `${goalie.teamId}-goalie.transparent.webp`,
+  );
+  const rawAlphaPath = resolve(RAW_ALPHA_DIR, `${goalie.teamId}.raw`);
+  const alphaMapPath = resolve(
+    ALPHA_MAP_DIR,
+    `${goalie.teamId}-goalie-alpha-mask.ts`,
+  );
+
+  execFileSync('magick', [
+    sourcePath,
+    '-alpha',
+    'on',
+    '-fuzz',
+    goalie.fuzz,
+    '-transparent',
+    goalie.chroma,
+    '-resize',
+    `${WIDTH}x${HEIGHT}!`,
+    '-define',
+    'webp:lossless=true',
+    webpPath,
+  ]);
+
+  execFileSync('magick', [
+    webpPath,
+    '-alpha',
+    'extract',
+    '-depth',
+    '8',
+    `gray:${rawAlphaPath}`,
+  ]);
+
+  const { opaquePixelCount, rows } = buildAlphaRuns(readFileSync(rawAlphaPath));
+  writeAlphaMap({
+    alphaMapPath,
+    constantName: toConstantName(goalie.teamId),
+    opaquePixelCount,
+    rows,
+    webpPath,
+  });
+
+  console.log(
+    `${goalie.teamId}: wrote ${webpPath} and ${alphaMapPath} (${opaquePixelCount} opaque pixels)`,
+  );
+}

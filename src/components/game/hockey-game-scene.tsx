@@ -10,11 +10,27 @@ import { BottomTabInset } from '@/constants/theme';
 import { HockeyTeam } from '@/data/teams';
 
 type HockeyGameSceneProps = {
+  challenge?: {
+    goalsRequired: number;
+    shotsAllowed: number;
+  };
   goalieTeam?: HockeyTeam;
+  onChallengeComplete?: (result: {
+    goals: number;
+    misses: number;
+    passed: boolean;
+    saves: number;
+    shots: number;
+  }) => void;
   shooterTeam?: HockeyTeam;
 };
 
-export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProps) {
+export function HockeyGameScene({
+  challenge,
+  goalieTeam,
+  onChallengeComplete,
+  shooterTeam,
+}: HockeyGameSceneProps) {
   const { height, width } = useWindowDimensions();
   const [goals, setGoals] = useState(0);
   const [misses, setMisses] = useState(0);
@@ -44,6 +60,8 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
   const isMobileWeb = process.env.EXPO_OS === 'web' && width < 768;
   const faceoffTint =
     shooterTeam?.secondaryColor ?? goalieTeam?.secondaryColor ?? '#3077BD';
+  const goalieAlphaMask = goalieTeam?.goalieAlphaMask;
+  const shotsTaken = goals + misses + saves;
 
   useEffect(() => {
     let frameId: number | null = null;
@@ -72,31 +90,45 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         return resolution;
       }
 
+      if (!goalieAlphaMask) {
+        return resolution;
+      }
+
       const goalieHit = goalieHasOpaqueAlphaAtPoint({
+        mask: goalieAlphaMask,
         point: resolution.displayPoint,
         rect: goalieRect,
       });
 
       return goalieHit ? { ...resolution, outcome: 'save' } : resolution;
     },
-    [goalieRect],
+    [goalieAlphaMask, goalieRect],
   );
 
-  const handleShotComplete = useCallback((resolution: ShotResolution) => {
-    setLastShotResolution(resolution);
+  const handleShotComplete = useCallback(
+    (resolution: ShotResolution) => {
+      const nextGoals = goals + (resolution.outcome === 'goal' ? 1 : 0);
+      const nextSaves = saves + (resolution.outcome === 'save' ? 1 : 0);
+      const nextMisses = misses + (resolution.outcome === 'miss' ? 1 : 0);
+      const nextShots = nextGoals + nextSaves + nextMisses;
 
-    if (resolution.outcome === 'goal') {
-      setGoals((currentGoals) => currentGoals + 1);
-      return;
-    }
+      setLastShotResolution(resolution);
+      setGoals(nextGoals);
+      setSaves(nextSaves);
+      setMisses(nextMisses);
 
-    if (resolution.outcome === 'save') {
-      setSaves((currentSaves) => currentSaves + 1);
-      return;
-    }
-
-    setMisses((currentMisses) => currentMisses + 1);
-  }, []);
+      if (challenge && nextShots >= challenge.shotsAllowed) {
+        onChallengeComplete?.({
+          goals: nextGoals,
+          misses: nextMisses,
+          passed: nextGoals >= challenge.goalsRequired,
+          saves: nextSaves,
+          shots: nextShots,
+        });
+      }
+    },
+    [challenge, goals, misses, onChallengeComplete, saves],
+  );
 
   return (
     <View style={styles.screen}>
@@ -111,6 +143,17 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         <Text selectable={false} style={styles.scoreText}>
           SAVE {saves}
         </Text>
+        {challenge ? (
+          <Text selectable={false} style={styles.scoreText}>
+            SHOT {Math.min(shotsTaken, challenge.shotsAllowed)}/
+            {challenge.shotsAllowed}
+          </Text>
+        ) : null}
+        {challenge ? (
+          <Text selectable={false} style={styles.scoreText}>
+            NEED {challenge.goalsRequired}
+          </Text>
+        ) : null}
         <Text selectable={false} style={styles.scoreText}>
           RESULT {lastShotResolution?.outcome.toUpperCase() ?? '-'}
         </Text>
@@ -148,6 +191,7 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         ]}
       />
       <GoalieSprite
+        source={goalieTeam?.goalieImage}
         style={[
           styles.goalie,
           {
@@ -169,6 +213,7 @@ export function HockeyGameScene({ goalieTeam, shooterTeam }: HockeyGameSceneProp
         movementRange={shooterMovementRange}
         onShotComplete={handleShotComplete}
         resolveShotAtImpact={resolveShotAtImpact}
+        shotsDisabled={challenge ? shotsTaken >= challenge.shotsAllowed : false}
         shooterImage={shooterTeam?.shooterImage}
         showMobileControls={isMobileWeb}
         spriteLayout={{

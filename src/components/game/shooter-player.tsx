@@ -25,6 +25,7 @@ type ShooterPlayerProps = {
   resolveShotAtImpact?: (resolution: ShotResolution) => ShotResolution;
   shooterImage?: number;
   showMobileControls: boolean;
+  shotsDisabled?: boolean;
   spriteLayout: ShooterSpriteLayout;
 };
 
@@ -40,11 +41,13 @@ export function ShooterPlayer({
   resolveShotAtImpact,
   shooterImage,
   showMobileControls,
+  shotsDisabled = false,
   spriteLayout,
 }: ShooterPlayerProps) {
   const { height } = useWindowDimensions();
   const [aim, setAim] = useState<AimPoint>({ xRatio: 0.5, yRatio: 0.5 });
   const [moveAxis, setMoveAxis] = useState<MoveAxis>(0);
+  const [shotRequestKey, setShotRequestKey] = useState(0);
   const [shooterOffsetX, setShooterOffsetX] = useState(0);
   const shooterOffsetRef = useRef(0);
   const frameRef = useRef<number | null>(null);
@@ -53,6 +56,14 @@ export function ShooterPlayer({
   const handleAxisChange = useCallback((nextAxis: MoveAxis) => {
     setMoveAxis(Math.max(-1, Math.min(1, nextAxis)));
   }, []);
+
+  const handleShoot = useCallback(() => {
+    if (shotsDisabled) {
+      return;
+    }
+
+    setShotRequestKey((currentKey) => currentKey + 1);
+  }, [shotsDisabled]);
 
   useEffect(() => {
     shooterOffsetRef.current = Math.max(
@@ -137,11 +148,14 @@ export function ShooterPlayer({
         onShotComplete={onShotComplete}
         origin={puckOrigin}
         resolveShotAtImpact={resolveShotAtImpact}
+        shotRequestKey={shotRequestKey}
         shotResolution={shotResolution}
+        shotsDisabled={shotsDisabled}
       />
       <AimControl aim={aim} onAimChange={setAim} />
       <ShooterControls
         onAxisChange={handleAxisChange}
+        onShoot={handleShoot}
         showMobileControls={showMobileControls}
       />
     </View>

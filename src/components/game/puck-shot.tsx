@@ -17,7 +17,9 @@ type PuckShotProps = {
   origin: GamePoint;
   puckSize?: number;
   resolveShotAtImpact?: (resolution: ShotResolution) => ShotResolution;
+  shotRequestKey?: number;
   shotResolution: ShotResolution;
+  shotsDisabled?: boolean;
 };
 
 const SHOT_DURATION = 620;
@@ -27,7 +29,9 @@ export function PuckShot({
   origin,
   puckSize = 34,
   resolveShotAtImpact,
+  shotRequestKey = 0,
   shotResolution,
+  shotsDisabled = false,
 }: PuckShotProps) {
   const [activeShot, setActiveShot] = useState<ActiveShot | null>(null);
   const activeShotRef = useRef<ActiveShot | null>(null);
@@ -36,6 +40,8 @@ export function PuckShot({
   const latestOriginRef = useRef(origin);
   const latestResolutionRef = useRef(shotResolution);
   const resolveShotAtImpactRef = useRef(resolveShotAtImpact);
+  const shotsDisabledRef = useRef(shotsDisabled);
+  const lastShotRequestKeyRef = useRef(shotRequestKey);
 
   useEffect(() => {
     latestOriginRef.current = origin;
@@ -48,6 +54,10 @@ export function PuckShot({
   useEffect(() => {
     resolveShotAtImpactRef.current = resolveShotAtImpact;
   }, [resolveShotAtImpact]);
+
+  useEffect(() => {
+    shotsDisabledRef.current = shotsDisabled;
+  }, [shotsDisabled]);
 
   const clearFrame = useCallback(() => {
     if (frameRef.current !== null) {
@@ -96,7 +106,7 @@ export function PuckShot({
   );
 
   const fireShot = useCallback(() => {
-    if (activeShotRef.current !== null) {
+    if (shotsDisabledRef.current || activeShotRef.current !== null) {
       return;
     }
 
@@ -113,6 +123,15 @@ export function PuckShot({
     clearFrame();
     frameRef.current = requestAnimationFrame(animateShot);
   }, [animateShot, clearFrame]);
+
+  useEffect(() => {
+    if (shotRequestKey === lastShotRequestKeyRef.current) {
+      return;
+    }
+
+    lastShotRequestKeyRef.current = shotRequestKey;
+    fireShot();
+  }, [fireShot, shotRequestKey]);
 
   useEffect(() => {
     if (process.env.EXPO_OS !== 'web' || typeof window === 'undefined') {

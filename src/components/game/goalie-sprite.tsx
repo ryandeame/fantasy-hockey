@@ -1,17 +1,18 @@
 import { Image } from 'expo-image';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
-export const GOALIE_SPRITE_SOURCE = require('@/assets/images/goalies/fe4e80da-74b4-4b75-996b-f1cae7b3226c.transparent.webp');
+export const DEFAULT_GOALIE_SPRITE_SOURCE = require('@/assets/images/goalies/in-game/anchorage-icehawks-goalie.transparent.webp');
 
 type GoalieSpriteProps = {
+  source?: number;
   style?: StyleProp<ViewStyle>;
 };
 
-export function GoalieSprite({ style }: GoalieSpriteProps) {
+export function GoalieSprite({ source = DEFAULT_GOALIE_SPRITE_SOURCE, style }: GoalieSpriteProps) {
   return (
     <View pointerEvents="none" style={[styles.container, style]}>
       <Image
-        source={GOALIE_SPRITE_SOURCE}
+        source={source}
         contentFit="contain"
         style={styles.image}
       />

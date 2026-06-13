@@ -32,7 +32,11 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# reference/source images outside bundled app assets
+/images/
 
 # typescript
 *.tsbuildinfo

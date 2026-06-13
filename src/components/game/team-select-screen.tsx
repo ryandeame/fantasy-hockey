@@ -45,31 +45,43 @@ type WebCoordinateEvent = {
 
 type TeamSelectScreenProps = {
   teams?: readonly HockeyTeam[];
+  selectionMode?: 'versus' | 'single';
+  selectedSingleTeamId?: string;
   selectedTopTeamId?: string;
   selectedBottomTeamId?: string;
   onTopTeamChange?: (team: HockeyTeam) => void;
   onBottomTeamChange?: (team: HockeyTeam) => void;
+  onSingleTeamChange?: (team: HockeyTeam) => void;
   onSelectionChange?: (selection: {
     topTeam: HockeyTeam;
     bottomTeam: HockeyTeam;
+  }) => void;
+  onConfirmSingleSelection?: (selection: {
+    team: HockeyTeam;
   }) => void;
   onConfirmSelection?: (selection: {
     topTeam: HockeyTeam;
     bottomTeam: HockeyTeam;
   }) => void;
   confirmLabel?: string;
+  singleTeamLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
 export function TeamSelectScreen({
   teams = HOCKEY_TEAMS,
+  selectionMode = 'versus',
+  selectedSingleTeamId,
   selectedTopTeamId,
   selectedBottomTeamId,
   onTopTeamChange,
   onBottomTeamChange,
+  onSingleTeamChange,
   onSelectionChange,
+  onConfirmSingleSelection,
   onConfirmSelection,
   confirmLabel = 'Play',
+  singleTeamLabel = 'Team',
   style,
 }: TeamSelectScreenProps) {
   const { width } = useWindowDimensions();
@@ -84,6 +96,7 @@ export function TeamSelectScreen({
   );
   const topTeamId = selectedTopTeamId ?? internalTopTeamId;
   const bottomTeamId = selectedBottomTeamId ?? internalBottomTeamId;
+  const singleTeamId = selectedSingleTeamId ?? internalBottomTeamId;
   const topTeam =
     alphabetizedTeams.find((team) => team.id === topTeamId) ??
     alphabetizedTeams[0];
@@ -91,8 +104,12 @@ export function TeamSelectScreen({
     alphabetizedTeams.find((team) => team.id === bottomTeamId) ??
     alphabetizedTeams[1] ??
     alphabetizedTeams[0];
+  const singleTeam =
+    alphabetizedTeams.find((team) => team.id === singleTeamId) ??
+    alphabetizedTeams[0];
   const isWideLayout = width >= 780;
   const useMobileWebSwipe = Platform.OS === 'web' && !isWideLayout;
+  const isSingleSelection = selectionMode === 'single';
 
   const teamSelectImages = useMemo(
     () => [
@@ -169,7 +186,12 @@ export function TeamSelectScreen({
     });
   };
 
-  if (!topTeam || !bottomTeam) {
+  const handleSelectSingleTeam = (team: HockeyTeam) => {
+    setInternalBottomTeamId(team.id);
+    onSingleTeamChange?.(team);
+  };
+
+  if ((isSingleSelection && !singleTeam) || (!isSingleSelection && (!topTeam || !bottomTeam))) {
     return (
       <View style={[styles.emptyState, style]}>
         <Text selectable style={styles.emptyStateText}>
@@ -193,26 +215,50 @@ export function TeamSelectScreen({
     <View
       style={[
         styles.screen,
-        isWideLayout && styles.wideScreen,
+        isWideLayout && !isSingleSelection && styles.wideScreen,
         style,
       ]}>
-      <TeamSelectionPanel
-        label="Goalie"
-        selectedTeam={topTeam}
-        selectedTeamId={topTeam.id}
-        teams={alphabetizedTeams}
-        useSwipeSelection={useMobileWebSwipe}
-        onSelectTeam={(team) => handleSelectTeam('top', team)}
-      />
-      <TeamSelectionPanel
-        label="Shooter"
-        selectedTeam={bottomTeam}
-        selectedTeamId={bottomTeam.id}
-        teams={alphabetizedTeams}
-        useSwipeSelection={useMobileWebSwipe}
-        onSelectTeam={(team) => handleSelectTeam('bottom', team)}
-      />
-      {onConfirmSelection ? (
+      {isSingleSelection ? (
+        <TeamSelectionPanel
+          label={singleTeamLabel}
+          selectedTeam={singleTeam}
+          selectedTeamId={singleTeam.id}
+          teams={alphabetizedTeams}
+          useSwipeSelection={useMobileWebSwipe}
+          onSelectTeam={handleSelectSingleTeam}
+        />
+      ) : (
+        <>
+          <TeamSelectionPanel
+            label="Goalie"
+            selectedTeam={topTeam}
+            selectedTeamId={topTeam.id}
+            teams={alphabetizedTeams}
+            useSwipeSelection={useMobileWebSwipe}
+            onSelectTeam={(team) => handleSelectTeam('top', team)}
+          />
+          <TeamSelectionPanel
+            label="Shooter"
+            selectedTeam={bottomTeam}
+            selectedTeamId={bottomTeam.id}
+            teams={alphabetizedTeams}
+            useSwipeSelection={useMobileWebSwipe}
+            onSelectTeam={(team) => handleSelectTeam('bottom', team)}
+          />
+        </>
+      )}
+      {isSingleSelection && onConfirmSingleSelection ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={confirmLabel}
+          onPress={() => onConfirmSingleSelection({ team: singleTeam })}
+          style={styles.confirmButton}>
+          <Text selectable={false} style={styles.confirmButtonText}>
+            {confirmLabel}
+          </Text>
+        </Pressable>
+      ) : null}
+      {!isSingleSelection && onConfirmSelection ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={confirmLabel}

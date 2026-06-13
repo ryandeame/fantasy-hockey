@@ -10,6 +10,7 @@ export type MoveAxis = number;
 
 type ShooterControlsProps = {
   onAxisChange: (axis: MoveAxis) => void;
+  onShoot: () => void;
   showMobileControls: boolean;
 };
 
@@ -117,11 +118,12 @@ function getTouchOffset(
 
 export function ShooterControls({
   onAxisChange,
+  onShoot,
   showMobileControls,
 }: ShooterControlsProps) {
   const activeKeys = useRef(new Set<string>());
   const activeTouchIdRef = useRef<number | string | null>(null);
-  const shotTriggeredRef = useRef(false);
+  const isUpSlotActiveRef = useRef(false);
   const [knobOffset, setKnobOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -174,21 +176,6 @@ export function ShooterControls({
     };
   }, [onAxisChange]);
 
-  const fireSpacebarShot = useCallback(() => {
-    if (process.env.EXPO_OS !== 'web' || typeof window === 'undefined') {
-      return;
-    }
-
-    window.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        bubbles: true,
-        cancelable: true,
-        code: 'Space',
-        key: ' ',
-      }),
-    );
-  }, []);
-
   const updateJoystick = useCallback(
     (distanceX: number, distanceY = 0) => {
       const isUpSlot =
@@ -205,22 +192,23 @@ export function ShooterControls({
       if (isUpSlot) {
         onAxisChange(0);
 
-        if (!shotTriggeredRef.current) {
-          shotTriggeredRef.current = true;
-          fireSpacebarShot();
+        if (!isUpSlotActiveRef.current) {
+          isUpSlotActiveRef.current = true;
+          onShoot();
         }
 
         return;
       }
 
+      isUpSlotActiveRef.current = false;
       onAxisChange(nextKnobX / MAX_KNOB_TRAVEL);
     },
-    [fireSpacebarShot, onAxisChange],
+    [onAxisChange, onShoot],
   );
 
   const resetJoystick = useCallback(() => {
     activeTouchIdRef.current = null;
-    shotTriggeredRef.current = false;
+    isUpSlotActiveRef.current = false;
     setKnobOffset({ x: 0, y: 0 });
     onAxisChange(0);
   }, [onAxisChange]);
