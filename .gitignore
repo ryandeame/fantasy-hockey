@@ -38,6 +38,9 @@ yarn-error.*
 # reference/source images outside bundled app assets
 /images/
 
+# disposable project-local scratch files
+/tmp/
+
 # typescript
 *.tsbuildinfo
 
