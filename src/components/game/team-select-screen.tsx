@@ -32,7 +32,7 @@ type SwipePoint = {
 };
 
 const SWIPE_DISTANCE = 44;
-const SWIPE_STICK_IMAGE = require('@/assets/images/hockey-stick/hockey-stick-swipe.transparent.png');
+const SWIPE_STICK_IMAGE = require('@/assets/images/hockey-stick/hockey-stick-swipe.transparent.webp');
 
 type WebCoordinateEvent = {
   pageX?: number;
